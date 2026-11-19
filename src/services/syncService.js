@@ -4,19 +4,10 @@ import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   FIREBASE_CONFIG: 'marvelist_firebase_config_v1',
-  PREFS: 'marvelist_prefs_v1',
-  ROOM_PREFIX: 'marvelist_room_v1_'
+  WATCHLIST: 'marvelist_shared_watchlist_v1'
 };
 
-const FIREBASE_APP_NAME = 'marvelist-couple-sync';
-
-export const DEFAULT_ROOM_CODE = 'MARVEL-COPPIA';
-
-export function normalizeRoomCode(code) {
-  if (!code || typeof code !== 'string') return DEFAULT_ROOM_CODE;
-  const cleaned = code.trim().toUpperCase().replace(/[^A-Z0-9-_]/g, '');
-  return cleaned || DEFAULT_ROOM_CODE;
-}
+const FIREBASE_APP_NAME = 'marvelist-shared-sync';
 
 /**
  * Accetta sia JSON puro che snippet JS copiato direttamente dalla Console Firebase
@@ -28,23 +19,19 @@ export function parseFirebaseConfigInput(rawText) {
   }
 
   let text = rawText.trim();
-  // Rimuove eventuali commenti // o /* */
   text = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
-  // Estrae la porzione tra la prima { e l'ultima }
   const firstBrace = text.indexOf('{');
   const lastBrace = text.lastIndexOf('}');
   if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
     throw new Error('Oggetto { ... } non trovato nella configurazione incollata.');
   }
-  let objectBody = text.slice(firstBrace, lastBrace + 1);
+  const objectBody = text.slice(firstBrace, lastBrace + 1);
 
-  // Tenta prima JSON.parse diretto
   let parsed = null;
   try {
     parsed = JSON.parse(objectBody);
   } catch {
-    // Converte chiavi JS non quotate e apici singoli in JSON valido
     const normalized = objectBody
       .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
       .replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, '"$1"')
@@ -62,7 +49,9 @@ export function parseFirebaseConfigInput(rawText) {
 
   return {
     apiKey: String(parsed.apiKey).trim(),
-    authDomain: parsed.authDomain ? String(parsed.authDomain).trim() : `${String(parsed.projectId).trim()}.firebaseapp.com`,
+    authDomain: parsed.authDomain
+      ? String(parsed.authDomain).trim()
+      : `${String(parsed.projectId).trim()}.firebaseapp.com`,
     projectId: String(parsed.projectId).trim(),
     storageBucket: parsed.storageBucket ? String(parsed.storageBucket).trim() : '',
     messagingSenderId: parsed.messagingSenderId ? String(parsed.messagingSenderId).trim() : '',
@@ -83,7 +72,8 @@ export function resolveInitialFirebaseConfig() {
 
   try {
     if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-      const parsed = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+      const parsed =
+        typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
       if (parsed && parsed.apiKey && parsed.projectId) return parsed;
     }
   } catch {
@@ -115,44 +105,24 @@ export function saveStoredFirebaseConfig(config) {
   }
 }
 
-export function loadLocalPrefs() {
+export function loadLocalWatchlist() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PREFS);
+    const raw = localStorage.getItem(STORAGE_KEYS.WATCHLIST);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed?.progress || null;
   } catch {
     return null;
   }
 }
 
-export function saveLocalPrefs(prefs) {
-  try {
-    localStorage.setItem(STORAGE_KEYS.PREFS, JSON.stringify(prefs));
-  } catch {
-    // Ignora
-  }
-}
-
-export function loadLocalRoomState(roomCode) {
-  const cleanRoom = normalizeRoomCode(roomCode);
-  try {
-    const raw = localStorage.getItem(`${STORAGE_KEYS.ROOM_PREFIX}${cleanRoom}`);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-export function saveLocalRoomState(roomCode, state) {
-  const cleanRoom = normalizeRoomCode(roomCode);
+export function saveLocalWatchlist(progress) {
   try {
     localStorage.setItem(
-      `${STORAGE_KEYS.ROOM_PREFIX}${cleanRoom}`,
+      STORAGE_KEYS.WATCHLIST,
       JSON.stringify({
-        progress: state.progress || {},
-        profile: state.profile || {},
-        updatedAt: state.updatedAt || Date.now()
+        progress: progress || {},
+        updatedAt: Date.now()
       })
     );
   } catch {
@@ -163,7 +133,7 @@ export function saveLocalRoomState(roomCode, state) {
 let cachedSignature = '';
 let cachedClients = null;
 
-export async function getFirebaseClients(config) {
+async function getFirebaseClients(config) {
   if (!config || !config.apiKey || !config.projectId) {
     return null;
   }
@@ -186,7 +156,6 @@ export async function getFirebaseClients(config) {
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  // Tenta auth anonima senza bloccare Firestore se l'utente usa regole test-mode senza Auth
   try {
     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
       await signInWithCustomToken(auth, __initial_auth_token);
@@ -194,7 +163,6 @@ export async function getFirebaseClients(config) {
       await signInAnonymously(auth);
     }
   } catch (err) {
-    // Se Anonymous Auth non e abilitato in console, Firestore in test mode puo comunque funzionare
     console.warn('Auth anonima opzionale non attiva:', err?.code || err?.message);
   }
 
@@ -203,24 +171,24 @@ export async function getFirebaseClients(config) {
   return cachedClients;
 }
 
-function getRoomDocRef(db, cleanRoom) {
+function getSharedDocRef(db) {
   if (typeof __app_id !== 'undefined' && __app_id) {
-    return doc(db, 'artifacts', __app_id, 'public', 'data', 'marvelist_rooms', cleanRoom);
+    return doc(db, 'artifacts', __app_id, 'public', 'data', 'marvelist_shared', 'watchlist');
   }
-  return doc(db, 'marvelist_rooms', cleanRoom);
+  return doc(db, 'marvelist_shared', 'watchlist');
 }
 
-export function subscribeToRoom({ roomCode, firebaseConfig, seedState, onData, onStatus }) {
-  const cleanRoom = normalizeRoomCode(roomCode);
+export function subscribeToWatchlist({ firebaseConfig, seedProgress, onData, onStatus }) {
   let unsubSnapshot = null;
   let cancelled = false;
 
-  // Listener cross-tab per fallback localStorage
   const handleStorageEvent = (event) => {
-    if (event.key === `${STORAGE_KEYS.ROOM_PREFIX}${cleanRoom}` && event.newValue) {
+    if (event.key === STORAGE_KEYS.WATCHLIST && event.newValue) {
       try {
         const parsed = JSON.parse(event.newValue);
-        onData(parsed, { source: 'local' });
+        if (parsed?.progress) {
+          onData(parsed.progress);
+        }
       } catch {
         // Ignora
       }
@@ -241,29 +209,31 @@ export function subscribeToRoom({ roomCode, firebaseConfig, seedState, onData, o
   getFirebaseClients(firebaseConfig)
     .then((clients) => {
       if (cancelled || !clients) return;
-      const roomRef = getRoomDocRef(clients.db, cleanRoom);
+      const docRef = getSharedDocRef(clients.db);
 
       unsubSnapshot = onSnapshot(
-        roomRef,
+        docRef,
         (docSnap) => {
           if (cancelled) return;
           if (docSnap.exists()) {
             const data = docSnap.data();
-            saveLocalRoomState(cleanRoom, data);
-            onData(data, { source: 'cloud' });
+            if (data?.progress) {
+              saveLocalWatchlist(data.progress);
+              onData(data.progress);
+            }
             onStatus('synced', null);
           } else {
-            const localExisting = loadLocalRoomState(cleanRoom);
-            const initialPayload = {
-              progress: localExisting?.progress || seedState.progress,
-              profile: {
-                name: localExisting?.profile?.name || seedState.profile.name,
-                partnerName: localExisting?.profile?.partnerName || seedState.profile.partnerName
+            const localExisting = loadLocalWatchlist();
+            const initialProgress = localExisting || seedProgress;
+            saveLocalWatchlist(initialProgress);
+            setDoc(
+              docRef,
+              {
+                progress: initialProgress,
+                updatedAt: Date.now()
               },
-              updatedAt: Date.now()
-            };
-            saveLocalRoomState(cleanRoom, initialPayload);
-            setDoc(roomRef, initialPayload, { merge: true }).catch((err) => {
+              { merge: true }
+            ).catch((err) => {
               if (!cancelled) {
                 onStatus('error', formatFirestoreError(err));
               }
@@ -291,18 +261,8 @@ export function subscribeToRoom({ roomCode, firebaseConfig, seedState, onData, o
   };
 }
 
-export async function pushRoomState({ roomCode, firebaseConfig, state }) {
-  const cleanRoom = normalizeRoomCode(roomCode);
-  const payload = {
-    progress: state.progress,
-    profile: {
-      name: state.profile.name,
-      partnerName: state.profile.partnerName
-    },
-    updatedAt: Date.now()
-  };
-
-  saveLocalRoomState(cleanRoom, payload);
+export async function pushWatchlistState({ firebaseConfig, progress }) {
+  saveLocalWatchlist(progress);
 
   if (!firebaseConfig) {
     return { ok: true, mode: 'local' };
@@ -311,8 +271,15 @@ export async function pushRoomState({ roomCode, firebaseConfig, state }) {
   try {
     const clients = await getFirebaseClients(firebaseConfig);
     if (!clients) return { ok: true, mode: 'local' };
-    const roomRef = getRoomDocRef(clients.db, cleanRoom);
-    await setDoc(roomRef, payload, { merge: true });
+    const docRef = getSharedDocRef(clients.db);
+    await setDoc(
+      docRef,
+      {
+        progress,
+        updatedAt: Date.now()
+      },
+      { merge: true }
+    );
     return { ok: true, mode: 'cloud' };
   } catch (err) {
     console.error('Errore salvataggio Firestore:', err);
@@ -323,7 +290,7 @@ export async function pushRoomState({ roomCode, firebaseConfig, state }) {
 function formatFirestoreError(err) {
   const code = err?.code || '';
   if (code.includes('permission-denied')) {
-    return 'Permessi Firestore negati: imposta le regole di Firestore su marvelist_rooms (vedi Impostazioni Firebase). I dati restano salvati in locale.';
+    return 'Permessi Firestore negati: imposta le regole di Firestore su marvelist_shared (vedi Impostazioni Cloud). I dati restano salvati in locale.';
   }
   if (code.includes('unavailable') || code.includes('network')) {
     return 'Connessione cloud momentaneamente non raggiungibile. Modifiche salvate in localStorage.';

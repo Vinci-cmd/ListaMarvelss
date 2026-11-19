@@ -5,11 +5,9 @@ import {
   Search,
   Calendar,
   Compass,
-  Heart,
   Star,
   Flame,
   X,
-  UserPlus,
   CheckSquare,
   Award,
   Zap,
@@ -27,75 +25,25 @@ import {
   UNIVERSES_META
 } from './data/marvelDatabase';
 import {
-  DEFAULT_ROOM_CODE,
-  normalizeRoomCode,
   resolveInitialFirebaseConfig,
   saveStoredFirebaseConfig,
-  loadLocalPrefs,
-  saveLocalPrefs,
-  loadLocalRoomState,
-  subscribeToRoom,
-  pushRoomState
+  loadLocalWatchlist,
+  subscribeToWatchlist,
+  pushWatchlistState
 } from './services/syncService';
 import PosterEmblem from './components/PosterEmblem';
 import TitleCard from './components/TitleCard';
 import TitleDetailModal from './components/TitleDetailModal';
 import SyncSettingsModal from './components/SyncSettingsModal';
-import AuthView from './components/AuthView';
-
-function parseHashState() {
-  if (typeof window === 'undefined') {
-    return { route: 'dashboard', authMode: 'register', roomFromUrl: null };
-  }
-  const rawHash = window.location.hash || '';
-  const cleanPath = rawHash.replace(/^#/, '').split('?')[0].toLowerCase();
-  const hashQuery = rawHash.includes('?') ? rawHash.split('?')[1] : '';
-  const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(hashQuery);
-  const roomFromUrl = hashParams.get('room') || searchParams.get('room');
-
-  if (cleanPath === '/register') {
-    return { route: 'register', authMode: 'register', roomFromUrl };
-  }
-  if (cleanPath === '/login') {
-    return { route: 'register', authMode: 'login', roomFromUrl };
-  }
-  return { route: 'dashboard', authMode: 'register', roomFromUrl };
-}
 
 export default function App() {
-  const initialHash = useMemo(() => parseHashState(), []);
-  const savedPrefs = useMemo(() => loadLocalPrefs(), []);
-
-  const initialRoom = normalizeRoomCode(
-    initialHash.roomFromUrl || savedPrefs?.roomCode || DEFAULT_ROOM_CODE
-  );
-
-  const [currentRoute, setCurrentRoute] = useState(initialHash.route);
-  const [authMode, setAuthMode] = useState(initialHash.authMode);
-
   const [firebaseConfig, setFirebaseConfig] = useState(() => resolveInitialFirebaseConfig());
-  const [roomCode, setRoomCode] = useState(initialRoom);
-  const [activeMember, setActiveMember] = useState(savedPrefs?.activeMember || 'me');
-  const [syncModalState, setSyncModalState] = useState({ open: false, tab: 'room' });
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState(firebaseConfig ? 'connecting' : 'local');
   const [syncError, setSyncError] = useState(null);
 
-  const [userProfile, setUserProfile] = useState(() => {
-    const localRoom = loadLocalRoomState(initialRoom);
-    return {
-      name: localRoom?.profile?.name || savedPrefs?.profile?.name || 'Lui',
-      email: savedPrefs?.profile?.email || 'agente@shield.marvel',
-      favoriteHero: savedPrefs?.profile?.favoriteHero || 'Iron Man',
-      coupleMode: true,
-      partnerName: localRoom?.profile?.partnerName || savedPrefs?.profile?.partnerName || 'Lei',
-      isRegistered: savedPrefs?.profile?.isRegistered ?? true
-    };
-  });
-
   const [progress, setProgress] = useState(() => {
-    const localRoom = loadLocalRoomState(initialRoom);
-    return localRoom?.progress || INITIAL_USER_PROGRESS;
+    return loadLocalWatchlist() || INITIAL_USER_PROGRESS;
   });
 
   // Controlli di Filtro e Ordinamento
@@ -121,16 +69,6 @@ export default function App() {
     toastTimerRef.current = setTimeout(() => setToastMessage(null), 3200);
   };
 
-  const navigateTo = (route, mode = 'register') => {
-    setCurrentRoute(route);
-    if (route === 'register') {
-      setAuthMode(mode);
-      window.location.hash = mode === 'login' ? '#/login' : '#/register';
-    } else {
-      window.location.hash = '#/';
-    }
-  };
-
   // Scorciatoia "/" per cercare rapidamente
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -139,7 +77,7 @@ export default function App() {
         document.activeElement?.tagName !== 'INPUT' &&
         document.activeElement?.tagName !== 'TEXTAREA' &&
         !activeItem &&
-        !syncModalState.open
+        !isSyncModalOpen
       ) {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -147,64 +85,20 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeItem, syncModalState.open]);
+  }, [activeItem, isSyncModalOpen]);
 
+  // Sottoscrizione real-time (Firestore se configurato, altrimenti localStorage)
   useEffect(() => {
-    const onHashChange = () => {
-      const parsed = parseHashState();
-      setCurrentRoute(parsed.route);
-      setAuthMode(parsed.authMode);
-      if (parsed.roomFromUrl) {
-        setRoomCode(normalizeRoomCode(parsed.roomFromUrl));
-      }
-    };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
-  useEffect(() => {
-    saveLocalPrefs({
-      roomCode,
-      activeMember,
-      profile: userProfile
-    });
-  }, [roomCode, activeMember, userProfile]);
-
-  useEffect(() => {
-    const localExisting = loadLocalRoomState(roomCode);
-    if (localExisting?.progress) {
-      setProgress(localExisting.progress);
-    }
-    if (localExisting?.profile) {
-      setUserProfile((prev) => ({
-        ...prev,
-        name: localExisting.profile.name || prev.name,
-        partnerName: localExisting.profile.partnerName || prev.partnerName
-      }));
+    const localExisting = loadLocalWatchlist();
+    if (localExisting) {
+      setProgress(localExisting);
     }
 
-    const unsubscribe = subscribeToRoom({
-      roomCode,
+    const unsubscribe = subscribeToWatchlist({
       firebaseConfig,
-      seedState: {
-        progress: localExisting?.progress || INITIAL_USER_PROGRESS,
-        profile: {
-          name: userProfile.name,
-          partnerName: userProfile.partnerName
-        }
-      },
-      onData: (data) => {
-        if (data?.progress) {
-          setProgress(data.progress);
-        }
-        if (data?.profile) {
-          setUserProfile((prev) => ({
-            ...prev,
-            name: data.profile.name || prev.name,
-            partnerName: data.profile.partnerName || prev.partnerName,
-            coupleMode: true
-          }));
-        }
+      seedProgress: localExisting || INITIAL_USER_PROGRESS,
+      onData: (nextProgress) => {
+        setProgress(nextProgress);
       },
       onStatus: (status, errMsg) => {
         setSyncStatus(status);
@@ -213,17 +107,13 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [roomCode, firebaseConfig]);
+  }, [firebaseConfig]);
 
-  const persistSharedState = (nextProgress, nextProfile = userProfile) => {
+  const persistWatchlist = (nextProgress) => {
     setProgress(nextProgress);
-    pushRoomState({
-      roomCode,
+    pushWatchlistState({
       firebaseConfig,
-      state: {
-        progress: nextProgress,
-        profile: nextProfile
-      }
+      progress: nextProgress
     }).then((res) => {
       if (!res.ok && res.error) {
         setSyncStatus('error');
@@ -236,70 +126,30 @@ export default function App() {
 
   const toggleWatched = (id, e) => {
     if (e) e.stopPropagation();
-    const current = progress[id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-    const updatedItem =
-      activeMember === 'partner'
-        ? { ...current, partnerWatched: !current.partnerWatched }
-        : { ...current, status: current.status === 'watched' ? 'unwatched' : 'watched' };
-
-    persistSharedState({ ...progress, [id]: updatedItem });
-  };
-
-  const toggleSecondaryWatched = (id, e) => {
-    if (e) e.stopPropagation();
-    const current = progress[id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-    const updatedItem =
-      activeMember === 'partner'
-        ? { ...current, status: current.status === 'watched' ? 'unwatched' : 'watched' }
-        : { ...current, partnerWatched: !current.partnerWatched };
-
-    persistSharedState({ ...progress, [id]: updatedItem });
-  };
-
-  const togglePartnerDirect = (id, e) => {
-    if (e) e.stopPropagation();
-    const current = progress[id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-    persistSharedState({
-      ...progress,
-      [id]: { ...current, partnerWatched: !current.partnerWatched }
-    });
+    const current = progress[id] || { status: 'unwatched', rating: 0, notes: '' };
+    const nextStatus = current.status === 'watched' ? 'unwatched' : 'watched';
+    persistWatchlist({ ...progress, [id]: { ...current, status: nextStatus } });
   };
 
   const setItemStatus = (id, status) => {
-    const current = progress[id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-    persistSharedState({
-      ...progress,
-      [id]: { ...current, status }
-    });
+    const current = progress[id] || { status: 'unwatched', rating: 0, notes: '' };
+    persistWatchlist({ ...progress, [id]: { ...current, status } });
   };
 
   const setItemRating = (id, rating, e) => {
     if (e) e.stopPropagation();
-    const current = progress[id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-    persistSharedState({
-      ...progress,
-      [id]: { ...current, rating }
-    });
+    const current = progress[id] || { status: 'unwatched', rating: 0, notes: '' };
+    persistWatchlist({ ...progress, [id]: { ...current, rating } });
   };
 
   const updateItemNotes = (id, notes) => {
-    const current = progress[id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-    const nextProgress = {
-      ...progress,
-      [id]: { ...current, notes }
-    };
+    const current = progress[id] || { status: 'unwatched', rating: 0, notes: '' };
+    const nextProgress = { ...progress, [id]: { ...current, notes } };
     setProgress(nextProgress);
 
     if (notesSyncTimerRef.current) clearTimeout(notesSyncTimerRef.current);
     notesSyncTimerRef.current = setTimeout(() => {
-      pushRoomState({
-        roomCode,
-        firebaseConfig,
-        state: {
-          progress: nextProgress,
-          profile: userProfile
-        }
-      });
+      pushWatchlistState({ firebaseConfig, progress: nextProgress });
     }, 350);
   };
 
@@ -307,14 +157,10 @@ export default function App() {
     const itemsInPhase = MCU_DATABASE.filter((item) => item.phase === phaseName);
     const updated = { ...progress };
     itemsInPhase.forEach((item) => {
-      const cur = updated[item.id] || { status: 'unwatched', rating: 0, partnerWatched: false, notes: '' };
-      if (activeMember === 'partner') {
-        updated[item.id] = { ...cur, partnerWatched: true };
-      } else {
-        updated[item.id] = { ...cur, status: 'watched' };
-      }
+      const cur = updated[item.id] || { status: 'unwatched', rating: 0, notes: '' };
+      updated[item.id] = { ...cur, status: 'watched' };
     });
-    persistSharedState(updated);
+    persistWatchlist(updated);
     showToast(`Tutti i titoli di "${phaseName}" segnati come visti!`);
   };
 
@@ -324,35 +170,24 @@ export default function App() {
       : MCU_DATABASE.filter((i) => getItemUniverse(i) === 'MCU (Fasi 1-6)');
 
     const totalCount = activeDataset.length;
-    let meWatchedCount = 0;
-    let partnerWatchedCount = 0;
-    let activeWatchedCount = 0;
+    let watchedCount = 0;
     let inProgressCount = 0;
-    let coupleWatchedCount = 0;
     let totalMinutesWatched = 0;
     let totalMinutesAll = 0;
 
     activeDataset.forEach((item) => {
       totalMinutesAll += item.runtimeMinutes;
       const p = progress[item.id];
-      const meDone = p?.status === 'watched';
-      const partnerDone = Boolean(p?.partnerWatched);
-
-      if (meDone) meWatchedCount++;
-      if (partnerDone) partnerWatchedCount++;
-      if (meDone && partnerDone) coupleWatchedCount++;
-
-      const activeDone = activeMember === 'partner' ? partnerDone : meDone;
-      if (activeDone) {
-        activeWatchedCount++;
+      if (p?.status === 'watched') {
+        watchedCount++;
         totalMinutesWatched += item.runtimeMinutes;
-      } else if (activeMember === 'me' && p?.status === 'in_progress') {
+      } else if (p?.status === 'in_progress') {
         inProgressCount++;
         totalMinutesWatched += Math.round(item.runtimeMinutes * 0.5);
       }
     });
 
-    const percentage = totalCount > 0 ? Math.round((activeWatchedCount / totalCount) * 100) : 0;
+    const percentage = totalCount > 0 ? Math.round((watchedCount / totalCount) * 100) : 0;
     const inProgressPercent =
       totalCount > 0 ? Math.min(100 - percentage, Math.round((inProgressCount / totalCount) * 100)) : 0;
 
@@ -363,11 +198,7 @@ export default function App() {
           ? getItemUniverse(i) === 'Fantastici Quattro' || i.id === 'fantastic-four-first-steps'
           : getItemUniverse(i) === u.id
       );
-      const done = items.filter((i) =>
-        activeMember === 'partner'
-          ? Boolean(progress[i.id]?.partnerWatched)
-          : progress[i.id]?.status === 'watched'
-      ).length;
+      const done = items.filter((i) => progress[i.id]?.status === 'watched').length;
       return {
         phase: u.id,
         shortLabel: u.shortLabel,
@@ -383,20 +214,12 @@ export default function App() {
     const sortedForNext = [...filteredNextPool].sort((a, b) =>
       sortMode === 'timeline' ? a.timelineOrder - b.timelineOrder : a.releaseOrder - b.releaseOrder
     );
-    const nextUp = sortedForNext.find((i) =>
-      activeMember === 'partner'
-        ? !progress[i.id]?.partnerWatched
-        : progress[i.id]?.status !== 'watched'
-    );
+    const nextUp = sortedForNext.find((i) => progress[i.id]?.status !== 'watched');
 
     return {
-      activeLabel: activeMember === 'partner' ? userProfile.partnerName : userProfile.name,
       totalCount,
-      watchedCount: activeWatchedCount,
-      meWatchedCount,
-      partnerWatchedCount,
+      watchedCount,
       inProgressCount,
-      coupleWatchedCount,
       percentage,
       inProgressPercent,
       hoursWatched: Math.round(totalMinutesWatched / 60),
@@ -404,7 +227,7 @@ export default function App() {
       phaseBreakdown,
       nextUp
     };
-  }, [progress, includeLegacy, sortMode, selectedUniverse, activeMember, userProfile.name, userProfile.partnerName]);
+  }, [progress, includeLegacy, sortMode, selectedUniverse]);
 
   const filteredItems = useMemo(() => {
     return MCU_DATABASE.filter((item) => {
@@ -431,22 +254,10 @@ export default function App() {
       }
       if (onlyEssential && item.essentiality !== 'Essenziale') return false;
 
-      const meStatus = progress[item.id]?.status || 'unwatched';
-      const partnerDone = Boolean(progress[item.id]?.partnerWatched);
-
-      if (selectedStatus === 'watched') {
-        if (activeMember === 'partner' ? !partnerDone : meStatus !== 'watched') return false;
-      } else if (selectedStatus === 'unwatched') {
-        if (activeMember === 'partner' ? partnerDone : meStatus !== 'unwatched') return false;
-      } else if (selectedStatus === 'in_progress') {
-        if (meStatus !== 'in_progress') return false;
-      } else if (selectedStatus === 'couple_pending') {
-        if (activeMember === 'partner') {
-          if (!partnerDone || meStatus === 'watched') return false;
-        } else {
-          if (meStatus !== 'watched' || partnerDone) return false;
-        }
-      }
+      const status = progress[item.id]?.status || 'unwatched';
+      if (selectedStatus === 'watched' && status !== 'watched') return false;
+      if (selectedStatus === 'unwatched' && status !== 'unwatched') return false;
+      if (selectedStatus === 'in_progress' && status !== 'in_progress') return false;
 
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
@@ -476,8 +287,7 @@ export default function App() {
     onlyEssential,
     searchQuery,
     sortMode,
-    progress,
-    activeMember
+    progress
   ]);
 
   const availablePhases = useMemo(() => {
@@ -522,47 +332,6 @@ export default function App() {
     setOnlyEssential(false);
   };
 
-  const handleAuthSubmit = ({ name, email, favoriteHero, partnerName, roomCode: nextRoom }) => {
-    const cleanRoom = normalizeRoomCode(nextRoom);
-    const nextProfile = {
-      name,
-      email,
-      favoriteHero,
-      coupleMode: true,
-      partnerName,
-      isRegistered: true
-    };
-    setUserProfile(nextProfile);
-    setRoomCode(cleanRoom);
-    pushRoomState({
-      roomCode: cleanRoom,
-      firebaseConfig,
-      state: {
-        progress,
-        profile: nextProfile
-      }
-    });
-    navigateTo('dashboard');
-    showToast(`Connesso alla stanza "${cleanRoom}" come ${name}!`);
-  };
-
-  const handleSaveRoomSettings = ({ roomCode: nextRoom, name, partnerName, activeMember: nextMember }) => {
-    const clean = normalizeRoomCode(nextRoom);
-    const nextProfile = { ...userProfile, name, partnerName, coupleMode: true };
-    setUserProfile(nextProfile);
-    setActiveMember(nextMember);
-    setRoomCode(clean);
-    pushRoomState({
-      roomCode: clean,
-      firebaseConfig,
-      state: {
-        progress,
-        profile: nextProfile
-      }
-    });
-    showToast(`Stanza "${clean}" aggiornata!`);
-  };
-
   const handleSaveFirebaseConfig = (nextConfig) => {
     saveStoredFirebaseConfig(nextConfig);
     setFirebaseConfig(nextConfig);
@@ -570,38 +339,19 @@ export default function App() {
     setSyncStatus(nextConfig ? 'connecting' : 'local');
   };
 
-  const handleResetRoomProgress = (mode) => {
+  const handleResetProgress = (mode) => {
     const next = mode === 'demo' ? INITIAL_USER_PROGRESS : {};
-    persistSharedState(next);
+    persistWatchlist(next);
     showToast(
       mode === 'demo'
-        ? 'Progressi demo ripristinati nella stanza.'
+        ? 'Progressi demo ripristinati.'
         : 'Watchlist azzerata: pronti per iniziare da zero!'
     );
   };
 
-  if (currentRoute === 'register') {
-    return (
-      <AuthView
-        authMode={authMode}
-        setAuthMode={(mode) => navigateTo('register', mode)}
-        totalTitles={MCU_DATABASE.length}
-        stats={stats}
-        userProfile={userProfile}
-        roomCode={roomCode}
-        onContinueAsGuest={() => navigateTo('dashboard')}
-        onSubmitAuth={handleAuthSubmit}
-        onSelectItem={(item) => setActiveItem(item)}
-        onToggleWatched={(id) => toggleWatched(id)}
-      />
-    );
-  }
-
-  const otherPartnerName = activeMember === 'partner' ? userProfile.name : userProfile.partnerName;
-
   return (
     <div className="min-h-screen bg-[#08080c] text-zinc-100 pb-20 relative">
-      {/* Sottile spotlight superiore da sala cinematografica */}
+      {/* Spotlight superiore */}
       <div
         className="absolute inset-x-0 top-0 h-[420px] pointer-events-none"
         style={{
@@ -626,13 +376,13 @@ export default function App() {
             <div className="bg-[#e62429] text-white font-display font-extrabold tracking-tight text-2xl px-2.5 py-0.5 rounded-lg">
               MARVEL<span className="font-semibold opacity-90">IST</span>
             </div>
-            <span className="hidden lg:inline-block text-[11px] font-mono font-semibold text-zinc-300 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/10 tabular-nums">
+            <span className="hidden sm:inline-block text-[11px] font-mono font-semibold text-zinc-300 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/10 tabular-nums">
               {MCU_DATABASE.length} TITOLI
             </span>
           </div>
 
           {/* Barra di Ricerca Rapida */}
-          <div className="order-3 sm:order-2 w-full sm:w-auto sm:flex-1 sm:max-w-md relative">
+          <div className="order-3 sm:order-2 w-full sm:w-auto sm:flex-1 sm:max-w-lg relative">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               ref={searchInputRef}
@@ -664,47 +414,19 @@ export default function App() {
             )}
           </div>
 
-          {/* Selettore rapido Sono Lui / Sono Lei + Stanza + Impostazioni + Account */}
-          <div className="order-2 sm:order-3 flex items-center gap-1.5 sm:gap-2">
-            <div className="flex items-center bg-black/65 p-0.5 rounded-xl border border-white/10">
-              <button
-                type="button"
-                onClick={() => setActiveMember('me')}
-                className={`px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-colors max-w-[78px] truncate ${
-                  activeMember === 'me'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                title={`Modalità ${userProfile.name}`}
-              >
-                {userProfile.name}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveMember('partner')}
-                className={`px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-colors flex items-center gap-1 max-w-[84px] ${
-                  activeMember === 'partner'
-                    ? 'bg-rose-600 text-white'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                title={`Modalità ${userProfile.partnerName}`}
-              >
-                <Heart className="w-3 h-3 fill-current shrink-0" />
-                <span className="truncate">{userProfile.partnerName}</span>
-              </button>
-            </div>
-
+          {/* Stato Sync Cloud & Impostazioni */}
+          <div className="order-2 sm:order-3 flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSyncModalState({ open: true, tab: 'room' })}
-              title={
+              onClick={() => setIsSyncModalOpen(true)}
+              aria-label="Impostazioni Sync Cloud"
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
                 syncStatus === 'synced'
-                  ? 'Firestore Cloud attivo'
-                  : syncStatus === 'local'
-                  ? 'Salvataggio locale (localStorage) • Clicca per collegare Firebase'
-                  : 'Stato sincronizzazione'
-              }
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#e5a93b]/15 hover:bg-[#e5a93b]/25 border border-[#e5a93b]/40 text-[#f3c66c] text-xs font-bold transition-colors"
+                  ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300'
+                  : syncStatus === 'error'
+                  ? 'bg-red-500/15 hover:bg-red-500/25 border-red-500/40 text-red-300'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] border-white/12 text-zinc-200'
+              }`}
             >
               {syncStatus === 'synced' ? (
                 <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -713,45 +435,22 @@ export default function App() {
               ) : (
                 <HardDrive className="w-3.5 h-3.5 text-sky-400 shrink-0" />
               )}
-              <span className="font-mono max-w-[100px] truncate">{roomCode}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSyncModalState({ open: true, tab: 'firebase' })}
-              title="Impostazioni Firebase & Sync"
-              aria-label="Impostazioni Firebase"
-              className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300 hover:text-white transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigateTo('register', 'register')}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-xs font-semibold text-zinc-200 transition-colors"
-            >
-              <UserPlus className="w-3.5 h-3.5 text-[#e62429]" />
-              <span className="hidden md:inline">Account</span>
+              <span>{syncStatus === 'synced' ? 'Cloud Attivo' : 'Sync Cloud'}</span>
+              <Settings className="w-3.5 h-3.5 opacity-70" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Modale Stanza Condivisa & Impostazioni Firebase */}
+      {/* Modale Impostazioni Cloud & Watchlist */}
       <SyncSettingsModal
-        isOpen={syncModalState.open}
-        initialTab={syncModalState.tab}
-        onClose={() => setSyncModalState((prev) => ({ ...prev, open: false }))}
-        roomCode={roomCode}
-        userProfile={userProfile}
-        activeMember={activeMember}
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
         syncStatus={syncStatus}
         syncError={syncError}
         firebaseConfig={firebaseConfig}
-        onSaveRoomSettings={handleSaveRoomSettings}
         onSaveFirebaseConfig={handleSaveFirebaseConfig}
-        onResetRoomProgress={handleResetRoomProgress}
+        onResetProgress={handleResetProgress}
         onShowToast={showToast}
       />
 
@@ -764,10 +463,10 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold text-[#e5a93b] uppercase tracking-wider mb-1">
                   <Award className="w-4 h-4" />
-                  <span>Dossier Visione • {stats.activeLabel}</span>
+                  <span>Dossier Multiverso Marvel</span>
                 </div>
                 <h1 className="font-display text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-white leading-none">
-                  Avanzamento Multiverso:{' '}
+                  Avanzamento Maratona:{' '}
                   <span className="text-[#e62429] tabular-nums">{stats.percentage}%</span>
                 </h1>
               </div>
@@ -788,7 +487,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Barra di avanzamento segmentata (Completati + In Corso) */}
+            {/* Barra di avanzamento segmentata */}
             <div className="space-y-3 mb-5">
               <div className="w-full h-3.5 bg-black/70 rounded-full overflow-hidden p-0.5 border border-white/10 flex">
                 <div
@@ -805,17 +504,17 @@ export default function App() {
               </div>
 
               <div className="flex flex-wrap items-center justify-between text-xs text-zinc-300 gap-2 tabular-nums">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-semibold">
-                    {userProfile.name}: {stats.meWatchedCount}
+                <div className="flex items-center gap-3">
+                  <span>
+                    In corso: <strong className="text-[#f3c66c]">{stats.inProgressCount}</strong>
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/25 text-rose-300 font-semibold">
-                    {userProfile.partnerName}: {stats.partnerWatchedCount}
+                  <span className="text-zinc-500">•</span>
+                  <span>
+                    Da vedere:{' '}
+                    <strong className="text-zinc-200">
+                      {Math.max(0, stats.totalCount - stats.watchedCount - stats.inProgressCount)}
+                    </strong>
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#e5a93b]/10 border border-[#e5a93b]/25 text-[#f3c66c] font-semibold">
-                    Insieme: {stats.coupleWatchedCount}
-                  </span>
-                  <span className="text-zinc-400">• In corso: {stats.inProgressCount}</span>
                 </div>
 
                 <label className="inline-flex items-center gap-2 cursor-pointer text-zinc-300 hover:text-white">
@@ -864,7 +563,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Card Prossimo Titolo Consigliato ("Up Next") */}
+          {/* Card Prossimo Titolo Consigliato */}
           <div className="lg:col-span-4 bg-[#111118] border border-white/12 rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
             {stats.nextUp ? (
               <>
@@ -872,7 +571,7 @@ export default function App() {
                   <div className="flex items-center justify-between mb-3">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#e5a93b]/15 border border-[#e5a93b]/35 text-[#f3c66c] text-xs font-bold">
                       <Zap className="w-3.5 h-3.5" />
-                      <span>Prossimo titolo consigliato</span>
+                      <span>Prossimo da guardare</span>
                     </span>
                     <span className="text-xs text-zinc-400 font-mono tabular-nums">
                       {sortMode === 'timeline'
@@ -925,7 +624,7 @@ export default function App() {
                     className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Segna Visto ({stats.activeLabel})</span>
+                    <span>Segna Visto</span>
                   </button>
                   <button
                     type="button"
@@ -940,10 +639,10 @@ export default function App() {
               <div className="h-full flex flex-col items-center justify-center text-center py-6">
                 <Award className="w-12 h-12 text-[#e5a93b] mb-3" />
                 <h3 className="font-display text-2xl font-bold uppercase text-white">
-                  Hai completato tutto il Multiverso!
+                  Avete completato tutto il Multiverso!
                 </h3>
                 <p className="text-xs text-zinc-400 mt-1">
-                  {stats.activeLabel} è pronto per Avengers: Doomsday e Secret Wars.
+                  Siete pronti per Avengers: Doomsday e Secret Wars.
                 </p>
               </div>
             )}
@@ -1102,10 +801,7 @@ export default function App() {
                 { id: 'Tutti', label: 'Tutti' },
                 { id: 'watched', label: 'Visti' },
                 { id: 'unwatched', label: 'Da Vedere' },
-                { id: 'in_progress', label: 'In Corso' },
-                ...(userProfile.coupleMode
-                  ? [{ id: 'couple_pending', label: `Manca a ${otherPartnerName}` }]
-                  : [])
+                { id: 'in_progress', label: 'In Corso' }
               ].map((st) => (
                 <button
                   key={st.id}
@@ -1207,16 +903,12 @@ export default function App() {
                         progress[item.id] || {
                           status: 'unwatched',
                           rating: 0,
-                          partnerWatched: false,
                           notes: ''
                         }
                       }
                       sortMode={sortMode}
-                      activeMember={activeMember}
-                      userProfile={userProfile}
                       onSelect={setActiveItem}
-                      onTogglePrimaryWatched={toggleWatched}
-                      onToggleSecondaryWatched={toggleSecondaryWatched}
+                      onToggleWatched={toggleWatched}
                       onSetRating={setItemRating}
                     />
                   ))}
@@ -1235,16 +927,12 @@ export default function App() {
                   progress[item.id] || {
                     status: 'unwatched',
                     rating: 0,
-                    partnerWatched: false,
                     notes: ''
                   }
                 }
                 sortMode={sortMode}
-                activeMember={activeMember}
-                userProfile={userProfile}
                 onSelect={setActiveItem}
-                onTogglePrimaryWatched={toggleWatched}
-                onToggleSecondaryWatched={toggleSecondaryWatched}
+                onToggleWatched={toggleWatched}
                 onSetRating={setItemRating}
               />
             ))}
@@ -1256,11 +944,9 @@ export default function App() {
       <TitleDetailModal
         item={activeItem}
         userItem={activeItem ? progress[activeItem.id] : null}
-        userProfile={userProfile}
         onClose={() => setActiveItem(null)}
         onSetStatus={setItemStatus}
         onSetRating={setItemRating}
-        onTogglePartnerWatched={togglePartnerDirect}
         onUpdateNotes={updateItemNotes}
       />
     </div>

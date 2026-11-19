@@ -8,7 +8,6 @@ import {
   Sparkles,
   Calendar,
   Compass,
-  Heart,
   Star,
   MessageSquareText,
   Layers
@@ -20,23 +19,12 @@ export default function TitleCard({
   index,
   userItem,
   sortMode,
-  activeMember,
-  userProfile,
   onSelect,
-  onTogglePrimaryWatched,
-  onToggleSecondaryWatched,
+  onToggleWatched,
   onSetRating
 }) {
-  const isMeWatched = userItem.status === 'watched';
-  const isMeInProgress = userItem.status === 'in_progress';
-  const isPartnerWatched = Boolean(userItem.partnerWatched);
-
-  const primaryWatched = activeMember === 'partner' ? isPartnerWatched : isMeWatched;
-  const primaryInProgress = activeMember === 'me' && isMeInProgress;
-  const secondaryWatched = activeMember === 'partner' ? isMeWatched : isPartnerWatched;
-  const activeName = activeMember === 'partner' ? userProfile.partnerName : userProfile.name;
-  const otherName = activeMember === 'partner' ? userProfile.name : userProfile.partnerName;
-
+  const isWatched = userItem.status === 'watched';
+  const isInProgress = userItem.status === 'in_progress';
   const hasNotes = Boolean(userItem.notes && userItem.notes.trim().length > 0);
   const formattedIndex = String(index + 1).padStart(3, '0');
 
@@ -51,16 +39,15 @@ export default function TitleCard({
         }
       }}
       className={`poster-card group relative rounded-[14px] overflow-hidden border cursor-pointer flex flex-col justify-between bg-[#111118] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-        primaryWatched
+        isWatched
           ? 'border-emerald-500/40 hover:border-emerald-400/70'
-          : primaryInProgress
+          : isInProgress
           ? 'border-amber-500/50 hover:border-amber-400/80'
           : 'border-white/10 hover:border-[#e62429]/70'
       }`}
     >
       {/* Poster Header Cinematografico */}
       <div className={`relative h-48 bg-gradient-to-br ${item.gradient} p-4 flex flex-col justify-between overflow-hidden`}>
-        {/* Vignetta editoriale inferiore per contrasto titolo garantito */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -68,8 +55,6 @@ export default function TitleCard({
               'linear-gradient(180deg, rgba(8,8,12,0.28) 0%, rgba(8,8,12,0.12) 42%, rgba(8,8,12,0.88) 100%)'
           }}
         />
-
-        {/* Spotlight diagonale su hover */}
         <div
           className="poster-sheen absolute inset-0 pointer-events-none"
           style={{
@@ -77,8 +62,6 @@ export default function TitleCard({
               'radial-gradient(circle at 80% 20%, rgba(255,255,255,0.14), transparent 55%)'
           }}
         />
-
-        {/* Emblema SVG sullo sfondo */}
         <div className="poster-emblem absolute -right-4 -bottom-4 text-white opacity-20 pointer-events-none">
           <PosterEmblem type={item.iconType} className="w-32 h-32" />
         </div>
@@ -120,7 +103,7 @@ export default function TitleCard({
             {hasNotes && (
               <span
                 className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-sky-300 border border-sky-400/35 flex items-center"
-                title="Contiene note personali"
+                title="Contiene note"
               >
                 <MessageSquareText className="w-2.5 h-2.5" />
               </span>
@@ -188,7 +171,6 @@ export default function TitleCard({
 
         {/* Footer Interattivo Card */}
         <div className="pt-3 border-t border-white/[0.08] space-y-2.5">
-          {/* Post-credit & Valutazione */}
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-[#e5a93b] flex items-center gap-1 tabular-nums">
               <Sparkles className="w-3.5 h-3.5" />
@@ -214,58 +196,34 @@ export default function TitleCard({
             </div>
           </div>
 
-          {/* Bottoni Azione: Segna Visto + Toggle Coppia */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(e) => onTogglePrimaryWatched(item.id, e)}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
-                primaryWatched
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                  : primaryInProgress
-                  ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40 hover:bg-amber-500/30'
-                  : 'bg-white/[0.05] hover:bg-white/[0.11] text-zinc-100 border border-white/10'
-              }`}
-            >
-              {primaryWatched ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Visto ({activeName})</span>
-                </>
-              ) : primaryInProgress ? (
-                <>
-                  <Clock className="w-4 h-4 text-amber-400" />
-                  <span>In Corso</span>
-                </>
-              ) : (
-                <>
-                  <Circle className="w-4 h-4 text-zinc-400" />
-                  <span>Segna Visto</span>
-                </>
-              )}
-            </button>
-
-            {userProfile.coupleMode && (
-              <button
-                type="button"
-                onClick={(e) => onToggleSecondaryWatched(item.id, e)}
-                title={
-                  secondaryWatched
-                    ? `Visto anche da ${otherName}`
-                    : `Segna come visto per ${otherName}`
-                }
-                aria-label={`Toggle visione di ${otherName}`}
-                className={`px-2.5 py-2 rounded-xl border transition-colors flex items-center gap-1 text-[11px] font-bold ${
-                  secondaryWatched
-                    ? 'bg-rose-500/20 border-rose-500/45 text-rose-200 hover:bg-rose-500/30'
-                    : 'bg-white/[0.04] border-white/10 text-zinc-400 hover:text-rose-300 hover:border-rose-500/30'
-                }`}
-              >
-                <Heart className={`w-3.5 h-3.5 ${secondaryWatched ? 'fill-rose-500 text-rose-400' : ''}`} />
-                <span className="hidden xl:inline max-w-[56px] truncate">{otherName}</span>
-              </button>
+          <button
+            type="button"
+            onClick={(e) => onToggleWatched(item.id, e)}
+            className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
+              isWatched
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                : isInProgress
+                ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40 hover:bg-amber-500/30'
+                : 'bg-white/[0.05] hover:bg-white/[0.11] text-zinc-100 border border-white/10'
+            }`}
+          >
+            {isWatched ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Visto</span>
+              </>
+            ) : isInProgress ? (
+              <>
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span>In Corso</span>
+              </>
+            ) : (
+              <>
+                <Circle className="w-4 h-4 text-zinc-400" />
+                <span>Segna Visto</span>
+              </>
             )}
-          </div>
+          </button>
         </div>
       </div>
     </article>
