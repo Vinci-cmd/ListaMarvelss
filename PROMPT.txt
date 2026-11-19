@@ -1,0 +1,44 @@
+Crea una web app completa chiamata MarveList (enciclopedia interattiva e tracker del Multiverso Marvel) pronta per essere pubblicata su GitHub Pages (static site build, compatibile con base: './' su Vite/React e Tailwind CSS).
+
+Obiettivo & Funzionalità Principali
+
+Database Enciclopedico Completo (oltre 105 titoli Marvel):
+
+MCU (Fasi 1-6): da Iron Man (2008) fino a Thunderbolts*, I Fantastici Quattro: Gli Inizi, Daredevil: Born Again, Spider-Man: Brand New Day, Avengers: Doomsday e Avengers: Secret Wars, inclusi gli Special Presentation (Licantropus, Holiday Special) e le serie animate (What If...?, Marvel Zombies, Eyes of Wakanda).
+
+Defenders & Serie TV: Daredevil (S1-3), Jessica Jones, Luke Cage, Iron Fist, The Defenders, The Punisher, Agent Carter, Agents of S.H.I.E.L.D., Inhumans, Runaways, Cloak & Dagger, Helstrom.
+
+X-Men & Mutanti: Trilogia originale (X-Men 1, 2, Conflitto finale), Trilogia Wolverine (Le origini, L'immortale, Logan), Nuova linea temporale (L'inizio, Giorni di un futuro passato, Apocalisse, Dark Phoenix, The New Mutants), Deadpool 1 & 2, Legion, The Gifted e X-Men '97.
+
+Spider-Man Legacy, SSU & Spider-Verse: Trilogia di Sam Raimi (Spider-Man 1, 2, 3), The Amazing Spider-Man 1 & 2, Sony's Spider-Man Universe (Venom 1, 2, The Last Dance, Morbius, Madame Web, Kraven - Il cacciatore) e la trilogia animata Spider-Verse (Un nuovo universo, Across, Beyond).
+
+Fantastici Quattro (Storici): I Fantastici 4 (2005), Silver Surfer (2007), Fantastic 4 (2015).
+
+Marvel Legacy & Cult: Trilogia Blade (Wesley Snipes), Daredevil (2003), Elektra (2005), Hulk (2003), The Punisher (2004), Punisher: Zona di guerra (2008), Ghost Rider 1 & 2 (Nicolas Cage), Howard e il destino del mondo (1986).
+
+Dati per Ogni Scheda:
+
+Titolo italiano e originale, formato (Film, Serie TV, Special), Universo, Fase/Saga, data e anno di uscita, anno nella timeline cronologica, durata/episodi, livello di essenzialità (Essenziale, Consigliato, Spin-off), sinossi, cast principale, connessioni multiversali/cameo MCU e conteggio + descrizione senza spoiler delle scene post-credit.
+
+Filtri, Ordinamento & Viste:
+
+Selettore rapido per Universo Marvel, Fase/Sotto-Saga, Tipologia (Film, Serie TV, Speciali), Stato (Visti, Da Vedere, In Corso, Manca al Partner) e filtro Solo Essenziali.
+
+Ordinamento istantaneo per Ordine di Uscita, Timeline Cronologica, Valutazione (1-5 stelle) o Ordine Alfabetico (A-Z), più toggle tra Elenco Unico e Vista Raggruppata.
+
+Pagina /register e /login integrata (accessibile anche senza registrazione obbligatoria) con scheda "Prossimo titolo consigliato" e barre di avanzamento (percentuale e ore totali guardate).
+
+Sincronizzazione Online in Tempo Reale per Coppia (2 Dispositivi):
+
+Implementa una Stanza Condivisa di Coppia tramite Firebase Firestore (con fallback automatico su localStorage se le chiavi Firebase non sono ancora configurate, e un pannello Impostazioni dove poter inserire facilmente la propria firebaseConfig gratuita).
+
+Nella barra superiore ci deve essere un selettore rapido "Sono Lui / Sono Lei" (con nomi personalizzabili) e un Codice Stanza (es. MARVEL-COPPIA): quando uno dei due segna un film come visto, mette un voto a stelle, aggiunge una nota o attiva il cuoricino di visione in coppia, lo stato si aggiorna in tempo reale anche sull'altro dispositivo.
+
+Design & Deploy GitHub Pages:
+
+Tema scuro cinematografico Marvel (#0a0a0f con accenti #e62429 e oro/ambra), icone lucide-react, poster card con gradienti ed emblemi SVG dedicati per ogni saga.
+
+Configura vite.config.js con base: './' in modo che il build (npm run build) funzioni subito su GitHub Pages senza errori di routing o asset mancanti.
+
+
+Prendi spunto per UI e Database dall'Index che ti ho messo nella cartella 

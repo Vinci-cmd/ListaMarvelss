@@ -1,0 +1,262 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-600-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-600-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-700-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-700-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-800-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-condensed-800-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-400-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-400-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-500-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-500-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-600-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-600-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-700-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Barlow";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/barlow-700-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("./assets/fonts/jetbrains-mono-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("./assets/fonts/jetbrains-mono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --font-display: "Barlow Condensed", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg-cinema: #08080c;
+  --surface-elevated: #111118;
+  --surface-panel: #16161f;
+  --accent-crimson: #e62429;
+  --accent-brass: #e5a93b;
+  --border-hairline: rgba(255, 255, 255, 0.08);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    background-color: var(--bg-cinema);
+    color-scheme: dark;
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--bg-cinema);
+    color: #f4f4f6;
+    caret-color: var(--accent-crimson);
+  }
+
+  ::selection {
+    background-color: var(--accent-crimson);
+    color: #ffffff;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent-brass);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #08080c;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #272733;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-crimson);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hover senza spostamento del contenitore (Impeccable animate.md) */
+.poster-card {
+  transition: border-color 200ms var(--ease-expo), background-color 200ms var(--ease-expo);
+}
+
+.poster-card .poster-emblem {
+  transition: transform 420ms var(--ease-expo), opacity 300ms var(--ease-expo);
+}
+
+.poster-card:hover .poster-emblem {
+  transform: scale(1.08) rotate(5deg);
+  opacity: 0.28;
+}
+
+.poster-card .poster-sheen {
+  opacity: 0;
+  transition: opacity 320ms var(--ease-expo);
+}
+
+.poster-card:hover .poster-sheen {
+  opacity: 1;
+}
+
+@keyframes modalReveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-reveal {
+  animation: modalReveal 240ms var(--ease-expo) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .poster-card,
+  .poster-card .poster-emblem,
+  .poster-card .poster-sheen,
+  .modal-reveal {
+    animation: none !important;
+    transition: opacity 120ms linear, border-color 120ms linear !important;
+    transform: none !important;
+  }
+}
